@@ -1,23 +1,27 @@
-import pygame, os, time, copy, socketio, json
+import pygame, os, time, copy, socketio, json, sys
 
 sprites = {'idle': [], 'dead': [], 'jump': [], 'run': [], 'walk': []}
 
 pygame.init()
 screen = pygame.display.set_mode((600, 400))
 clock = pygame.time.Clock()
-running = True
 deltaTime = 0
 
-for key in sprites:
-  dir = "png/" + key + "/"
+try:
+  for key in sprites:
+    dir = "png/" + key + "/"
 
-  for filename in os.listdir(dir):
-    f = os.path.join(dir, filename)
-    img = pygame.image.load(f)
-    img = pygame.transform.scale(img, (100, 70))
+    for filename in os.listdir(dir):
+      f = os.path.join(dir, filename)
+      img = pygame.image.load(f)
+      img = pygame.transform.scale(img, (100, 70))
 
-    sprites[key].append(img)
-
+      sprites[key].append(img)
+except Exception:
+  os.system('cls')
+  print("Asset folder not found.")
+  input("\nPress enter to exit")
+  sys.exit(1)
 
 def isFloat(string):
   try:
@@ -67,8 +71,26 @@ class Player:
 
 sio = socketio.Client()
 
-sio.connect('http://game-server.vo1d.repl.co:80')
+ 
+config_file = 'config.json'
 
+if os.path.isfile(config_file):
+    with open(config_file, 'r') as f:
+        data = json.load(f)
+else:
+    data = {"ip": "http://localhost:80"}
+    with open(config_file, 'w') as f:
+        json.dump(data, f, indent=4)
+
+ip = data['ip']
+
+
+
+try:
+  sio.connect(ip)
+except Exception:
+  os.system("cls")
+  print("Error connecting to server (ip in config.json)")
 
 @sio.event
 def player_data(data):
@@ -118,6 +140,8 @@ class LocalPlayer:
   fall_speed = 5
   gravity = 1
 
+  gameRunning = True
+
   animFrame = int(1)
 
   def __init__(self, position, name):
@@ -160,13 +184,22 @@ class LocalPlayer:
         screen.blit(flippedFrame, (adjusted_x, self.position.y))
       else:
         screen.blit(animFrame, self.position)
+      try:
+        sio.emit(
+            'update_player', {
+                'pos': str(self.position),
+                'anim': str(self.animation),
+                'facing': str(self.facing),
+            })
+      except Exception:
+        self.gameRunning = False
+        
+        os.system("cls")
+        print("Error connecting to server (ip in config.json)")
 
-      sio.emit(
-          'update_player', {
-              'pos': str(self.position),
-              'anim': str(self.animation),
-              'facing': str(self.facing),
-          })
+        input("\nPress enter to exit")
+
+        sys.exit(1)
 
   def jump(self):
     if not self.is_jumping:
@@ -209,10 +242,10 @@ localPlayer = LocalPlayer(
 floor = Floor(pygame.Vector2(0,
                              screen.get_height() - 20), screen.get_width(), 20)
 
-while running:
+while localPlayer.gameRunning:
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
-      running = False
+      localPlayer.gameRunning = False
 
   screen.fill("purple")
 
