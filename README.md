@@ -17,15 +17,12 @@ pip install -r requirements.txt
 
 ## Running the script
 
-For server:
+For server/cient:
 ```bash
-python server.py
+cd to server/client
+python main.py
 ```
 
-For client:
-```bash
-python client.py
-```
 
 ## Other notes
 
